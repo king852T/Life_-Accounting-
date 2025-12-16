@@ -1,0 +1,577 @@
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, TrendingUp, TrendingDown, Clock, Play, Square, Trash2, Award, Zap, User, Heart, Moon } from 'lucide-react';
+
+const LifeAccountingApp = () => {
+  const [entries, setEntries] = useState([]);
+  const [reflections, setReflections] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showReflection, setShowReflection] = useState(false);
+  const [showProfiles, setShowProfiles] = useState(false);
+  const [userProfile, setUserProfile] = useState('general');
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackingStart, setTrackingStart] = useState(null);
+  const [trackingActivity, setTrackingActivity] = useState('');
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [currentReflection, setCurrentReflection] = useState({
+    date: new Date().toISOString().split('T')[0],
+    wins: '',
+    learnings: '',
+    gratitude: ''
+  });
+  const [currentEntry, setCurrentEntry] = useState({
+    activity: '',
+    category: 'work',
+    hours: 1,
+    date: new Date().toISOString().split('T')[0],
+    returns: { survival: 0, security: 0, belonging: 0, esteem: 0, actualization: 0 }
+  });
+
+  useEffect(() => { loadData(); }, []);
+  useEffect(() => { if (entries.length > 0) saveData(); }, [entries]);
+  useEffect(() => { if (reflections.length > 0) saveReflections(); }, [reflections]);
+  useEffect(() => {
+    let interval;
+    if (isTracking) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - trackingStart) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTracking, trackingStart]);
+
+  const loadData = () => {
+    try {
+      const savedEntries = localStorage.getItem('life-entries');
+      if (savedEntries) setEntries(JSON.parse(savedEntries));
+      
+      const savedProfile = localStorage.getItem('user-profile');
+      if (savedProfile) setUserProfile(savedProfile);
+      
+      const savedReflections = localStorage.getItem('evening-reflections');
+      if (savedReflections) setReflections(JSON.parse(savedReflections));
+    } catch (e) {
+      console.log('No data');
+    }
+  };
+
+  const saveData = () => {
+    try {
+      localStorage.setItem('life-entries', JSON.stringify(entries));
+      localStorage.setItem('user-profile', userProfile);
+    } catch (e) {
+      console.error('Save failed');
+    }
+  };
+
+  const saveReflections = () => {
+    try {
+      localStorage.setItem('evening-reflections', JSON.stringify(reflections));
+    } catch (e) {
+      console.error('Save failed');
+    }
+  };
+
+  const profiles = [
+    { id: 'general', name: 'General', icon: '👤', description: 'Standard tracking' },
+    { id: 'single-parent', name: 'Single Parent', icon: '👨‍👧', description: 'Balance caregiving, rest, work' },
+    { id: 'entrepreneur', name: 'Entrepreneur', icon: '💼', description: 'Track billable hours, burnout risk' },
+    { id: 'student', name: 'Student', icon: '📚', description: 'Manage study vs screen time' },
+    { id: 'unemployed', name: 'Unemployed', icon: '🎯', description: 'Structure productive routines' }
+  ];
+
+  const categories = [
+    { id: 'work', name: 'Work', color: 'bg-blue-500', type: 'deposit' },
+    { id: 'learning', name: 'Learning', color: 'bg-purple-500', type: 'deposit' },
+    { id: 'exercise', name: 'Exercise', color: 'bg-green-500', type: 'deposit' },
+    { id: 'social', name: 'Social', color: 'bg-pink-500', type: 'deposit' },
+    { id: 'rest', name: 'Rest', color: 'bg-indigo-500', type: 'deposit' },
+    { id: 'creativity', name: 'Creativity', color: 'bg-yellow-500', type: 'deposit' },
+    { id: 'maintenance', name: 'Maintenance', color: 'bg-gray-500', type: 'neutral' },
+    { id: 'distraction', name: 'Distraction', color: 'bg-red-500', type: 'withdrawal' }
+  ];
+
+  const maslowAccounts = [
+    { id: 'survival', name: 'Survival', icon: '🍎', fullName: 'Physiological', description: 'Sleep, food, exercise' },
+    { id: 'security', name: 'Security', icon: '🏠', fullName: 'Safety & Stability', description: 'Financial, health, routines' },
+    { id: 'belonging', name: 'Belonging', icon: '❤️', fullName: 'Love & Connection', description: 'Relationships, community' },
+    { id: 'esteem', name: 'Esteem', icon: '⭐', fullName: 'Self-Worth', description: 'Confidence, achievements' },
+    { id: 'actualization', name: 'Actualization', icon: '✨', fullName: 'Purpose & Growth', description: 'Creativity, legacy' }
+  ];
+
+  const startTracking = () => {
+    if (trackingActivity.trim()) {
+      setIsTracking(true);
+      setTrackingStart(Date.now());
+    }
+  };
+
+  const stopTracking = () => {
+    if (isTracking && trackingStart) {
+      const hrs = Math.max(0.1, (Date.now() - trackingStart) / 3600000).toFixed(2);
+      setCurrentEntry({ ...currentEntry, activity: trackingActivity, hours: hrs });
+      setIsTracking(false);
+      setTrackingStart(null);
+      setTrackingActivity('');
+      setShowForm(true);
+    }
+  };
+
+  const calculateStats = () => {
+    const totalHours = entries.reduce((s, e) => s + parseFloat(e.hours), 0);
+    const deposits = entries.filter(e => {
+      const cat = categories.find(c => c.id === e.category);
+      return cat?.type === 'deposit';
+    }).reduce((s, e) => s + parseFloat(e.hours), 0);
+    
+    const withdrawals = entries.filter(e => {
+      const cat = categories.find(c => c.id === e.category);
+      return cat?.type === 'withdrawal';
+    }).reduce((s, e) => s + parseFloat(e.hours), 0);
+
+    const assetTotals = { survival: 0, security: 0, belonging: 0, esteem: 0, actualization: 0 };
+    entries.forEach(e => {
+      Object.keys(e.returns).forEach(k => {
+        assetTotals[k] += e.returns[k] * parseFloat(e.hours);
+      });
+    });
+    const totalValue = Object.values(assetTotals).reduce((s, v) => s + v, 0);
+    const avgROI = totalHours > 0 ? (totalValue / totalHours).toFixed(2) : 0;
+    return { totalHours, deposits, withdrawals, assetTotals, totalValue, avgROI, isProfit: avgROI >= 5 };
+  };
+
+  const calculateTimeHealthScore = () => {
+    if (entries.length === 0) return 0;
+    const stats = calculateStats();
+    const roi = parseFloat(stats.avgROI);
+    const wasteRatio = stats.totalHours > 0 ? stats.withdrawals / stats.totalHours : 0;
+    const assetValues = Object.values(stats.assetTotals);
+    const maxAsset = Math.max(...assetValues);
+    const minAsset = Math.min(...assetValues);
+    const balance = maxAsset > 0 ? minAsset / maxAsset : 0;
+    const score = Math.round((roi / 10) * 40 + balance * 30 + (1 - wasteRatio) * 30);
+    return Math.min(100, Math.max(0, score));
+  };
+
+  const handleAdd = () => {
+    if (currentEntry.activity.trim()) {
+      setEntries([...entries, { ...currentEntry, id: Date.now() }]);
+      setCurrentEntry({
+        activity: '',
+        category: 'work',
+        hours: 1,
+        date: new Date().toISOString().split('T')[0],
+        returns: { survival: 0, security: 0, belonging: 0, esteem: 0, actualization: 0 }
+      });
+      setShowForm(false);
+    }
+  };
+
+  const handleReflection = () => {
+    if (currentReflection.wins.trim() || currentReflection.gratitude.trim()) {
+      setReflections([...reflections, { ...currentReflection, id: Date.now() }]);
+      setCurrentReflection({
+        date: new Date().toISOString().split('T')[0],
+        wins: '',
+        learnings: '',
+        gratitude: ''
+      });
+      setShowReflection(false);
+    }
+  };
+
+  const deleteEntry = (id) => {
+    if (confirm('Delete?')) setEntries(entries.filter(e => e.id !== id));
+  };
+
+  const formatTime = (s) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const stats = calculateStats();
+  const healthScore = calculateTimeHealthScore();
+  const todayReflection = reflections.find(r => r.date === new Date().toISOString().split('T')[0]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
+      <div className="max-w-6xl mx-auto">
+        
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-6 mb-6 text-white">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-1">Life Accounting</h1>
+              <p className="text-blue-100">Track time like money. Build your life balance sheet.</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowReflection(!showReflection)} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg">
+                <Moon size={20} />
+              </button>
+              <button onClick={() => setShowProfiles(!showProfiles)} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg">
+                <User size={20} />
+              </button>
+              <button onClick={() => setShowForm(!showForm)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold">
+                <PlusCircle size={20} className="inline mr-1" /> Log
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-white/10 backdrop-blur rounded-lg p-3 border border-white/20">
+              <div className="flex items-center gap-1 mb-1">
+                <Clock size={16} />
+                <span className="text-xs">Hours</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.totalHours.toFixed(1)}</p>
+            </div>
+            <div className="bg-green-500/20 backdrop-blur rounded-lg p-3 border border-green-400">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp size={16} />
+                <span className="text-xs">Deposits</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.deposits.toFixed(1)}h</p>
+            </div>
+            <div className="bg-red-500/20 backdrop-blur rounded-lg p-3 border border-red-400">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingDown size={16} />
+                <span className="text-xs">Withdrawals</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.withdrawals.toFixed(1)}h</p>
+            </div>
+            <div className={`backdrop-blur rounded-lg p-3 border-2 ${stats.isProfit ? 'bg-green-500/20 border-green-400' : 'bg-red-500/20 border-red-400'}`}>
+              <div className="flex items-center gap-1 mb-1">
+                {stats.isProfit ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                <span className="text-xs">ROI</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.avgROI}/10</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-3 border border-white/20">
+              <div className="flex items-center gap-1 mb-1">
+                <Heart size={16} />
+                <span className="text-xs">Health</span>
+              </div>
+              <p className="text-2xl font-bold">{healthScore}%</p>
+            </div>
+          </div>
+        </div>
+
+        {showReflection && (
+          <div className="bg-white rounded-xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+              <Moon className="text-indigo-600" />
+              Evening Reflection
+            </h2>
+            <p className="text-sm text-slate-600 mb-4">Process your day and release what no longer serves you</p>
+            {todayReflection ? (
+              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                <p className="text-sm font-semibold text-indigo-900 mb-2">✓ Reflected today</p>
+                <div className="space-y-2 text-sm text-slate-700">
+                  <p><strong>Wins:</strong> {todayReflection.wins}</p>
+                  {todayReflection.learnings && <p><strong>Learnings:</strong> {todayReflection.learnings}</p>}
+                  <p><strong>Gratitude:</strong> {todayReflection.gratitude}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    🏆 What did you accomplish today?
+                  </label>
+                  <textarea
+                    value={currentReflection.wins}
+                    onChange={(e) => setCurrentReflection({...currentReflection, wins: e.target.value})}
+                    placeholder="No matter how small..."
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg resize-none"
+                    rows="2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    📚 What is one lesson from today?
+                  </label>
+                  <textarea
+                    value={currentReflection.learnings}
+                    onChange={(e) => setCurrentReflection({...currentReflection, learnings: e.target.value})}
+                    placeholder="What didn't go as planned..."
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg resize-none"
+                    rows="2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    🙏 What are you grateful for?
+                  </label>
+                  <textarea
+                    value={currentReflection.gratitude}
+                    onChange={(e) => setCurrentReflection({...currentReflection, gratitude: e.target.value})}
+                    placeholder="Three things..."
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg resize-none"
+                    rows="2"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleReflection} className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-semibold">
+                    Save Reflection
+                  </button>
+                  <button onClick={() => setShowReflection(false)} className="px-4 py-3 border-2 border-slate-300 rounded-lg">
+                    Later
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showProfiles && (
+          <div className="bg-white rounded-xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <User className="text-purple-600" />
+              Choose Your Profile
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {profiles.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setUserProfile(p.id);
+                    setShowProfiles(false);
+                  }}
+                  className={`p-4 rounded-lg border-2 text-left transition ${
+                    userProfile === p.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-2xl">{p.icon}</span>
+                    <span className="font-bold">{p.name}</span>
+                  </div>
+                  <p className="text-sm text-slate-600">{p.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-xl p-5 mb-6">
+          <h3 className="font-bold mb-3 flex items-center gap-2">
+            <Zap className="text-blue-600" size={20} />
+            Live Tracker
+          </h3>
+          {!isTracking ? (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={trackingActivity}
+                onChange={(e) => setTrackingActivity(e.target.value)}
+                placeholder="What are you working on?"
+                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg"
+                onKeyPress={(e) => e.key === 'Enter' && startTracking()}
+              />
+              <button
+                onClick={startTracking}
+                disabled={!trackingActivity.trim()}
+                className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold disabled:bg-gray-400"
+              >
+                <Play size={20} className="inline mr-2" />
+                Start Tracking
+              </button>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-5 border-2 border-green-300">
+              <p className="font-semibold mb-2">{trackingActivity}</p>
+              <p className="text-4xl font-mono font-bold text-green-600 mb-3">{formatTime(elapsedTime)}</p>
+              <button onClick={stopTracking} className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold">
+                <Square size={18} className="inline mr-2" />
+                Stop & Log
+              </button>
+            </div>
+          )}
+        </div>
+
+        {showForm && (
+          <div className="bg-white rounded-xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Log Time Entry</h2>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={currentEntry.activity}
+                onChange={(e) => setCurrentEntry({...currentEntry, activity: e.target.value})}
+                placeholder="Activity description"
+                className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={currentEntry.category}
+                  onChange={(e) => setCurrentEntry({...currentEntry, category: e.target.value})}
+                  className="px-4 py-2 border-2 border-slate-300 rounded-lg"
+                >
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <input
+                  type="date"
+                  value={currentEntry.date}
+                  onChange={(e) => setCurrentEntry({...currentEntry, date: e.target.value})}
+                  className="px-4 py-2 border-2 border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">Duration</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-600 block mb-1">Hours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      value={Math.floor(currentEntry.hours)}
+                      onChange={(e) => {
+                        const hrs = parseInt(e.target.value) || 0;
+                        const mins = (parseFloat(currentEntry.hours) % 1) * 60;
+                        setCurrentEntry({...currentEntry, hours: (hrs + mins/60).toFixed(2)});
+                      }}
+                      className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-600 block mb-1">Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={Math.round((parseFloat(currentEntry.hours) % 1) * 60)}
+                      onChange={(e) => {
+                        const hrs = Math.floor(currentEntry.hours);
+                        const mins = parseInt(e.target.value) || 0;
+                        setCurrentEntry({...currentEntry, hours: (hrs + mins/60).toFixed(2)});
+                      }}
+                      className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-3">Rate Impact on Life Needs (0-10)</p>
+                <div className="space-y-3">
+                  {maslowAccounts.map(account => (
+                    <div key={account.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm">
+                          <span className="text-lg mr-1">{account.icon}</span>
+                          {account.fullName}
+                        </p>
+                        <p className="text-xs text-slate-500">{account.description}</p>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={currentEntry.returns[account.id]}
+                        onChange={(e) => setCurrentEntry({
+                          ...currentEntry,
+                          returns: {...currentEntry.returns, [account.id]: parseFloat(e.target.value) || 0}
+                        })}
+                        className="w-16 px-2 py-2 border-2 border-slate-300 rounded-lg text-center font-bold"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleAdd} className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold">
+                  Add Entry
+                </button>
+                <button onClick={() => setShowForm(false)} className="px-4 py-3 border-2 border-slate-300 rounded-lg">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-xl p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Award className="text-purple-600" />
+            Maslow's Hierarchy - Life Needs
+          </h2>
+          <div className="space-y-3">
+            {maslowAccounts.map(a => {
+              const val = stats.assetTotals[a.id];
+              const max = Math.max(...Object.values(stats.assetTotals), 1);
+              const pct = (val / max) * 100;
+              return (
+                <div key={a.id}>
+                  <div className="flex justify-between mb-1">
+                    <span className="font-semibold">{a.icon} {a.fullName}</span>
+                    <span className="font-bold">{val.toFixed(1)} pts</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500" style={{width: `${pct}%`}} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-xl p-6">
+          <h2 className="text-xl font-bold mb-4">Time Ledger</h2>
+          {entries.length === 0 ? (
+            <div className="text-center py-10 bg-slate-50 rounded-lg">
+              <Clock size={48} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500">No entries yet. Start tracking!</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {entries.slice().reverse().map(e => {
+                const cat = categories.find(c => c.id === e.category);
+                const roi = Object.values(e.returns).reduce((s, v) => s + v, 0) / 5;
+                return (
+                  <div key={e.id} className="border-2 border-slate-200 rounded-lg p-4 hover:shadow-md transition">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-800">{e.activity}</h3>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          <span className={`${cat.color} text-white text-xs px-2 py-1 rounded-full font-semibold`}>
+                            {cat.name} {cat.type === 'deposit' ? '📈' : cat.type === 'withdrawal' ? '📉' : ''}
+                          </span>
+                          <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
+                            {e.date}
+                          </span>
+                          <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
+                            {e.hours}h
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`font-bold ${roi >= 5 ? 'text-green-600' : 'text-red-600'}`}>
+                          {roi.toFixed(1)}/10
+                        </div>
+                        <button onClick={() => deleteEntry(e.id)} className="text-red-500 hover:bg-red-50 p-2 rounded">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {maslowAccounts.map(a => 
+                        e.returns[a.id] > 0 && (
+                          <span key={a.id} className="text-xs bg-slate-50 px-2 py-1 rounded-full border">
+                            {a.icon} +{e.returns[a.id]}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 text-center text-slate-400 pb-4">
+          <p className="text-sm">Life Accounting © 2025 | "Time is money" - Benjamin Franklin</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
