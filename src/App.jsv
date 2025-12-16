@@ -574,5 +574,5 @@ const LifeAccountingApp = () => {
     </div>
   );
 };
-exportdefaultLifeAccountingApp
+export default LifeAccountingApp
 
