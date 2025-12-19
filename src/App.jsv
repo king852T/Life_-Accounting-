@@ -1,4 +1,4 @@
-ximport React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, TrendingUp, TrendingDown, Clock, Play, Square, Trash2, Award, Zap, User, Heart, Moon } from 'lucide-react';
 
 const LifeAccountingApp = () => {
