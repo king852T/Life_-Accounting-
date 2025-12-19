@@ -574,5 +574,5 @@ const LifeAccountingApp = () => {
     </div>
   );
 };
-export default LifeAccountingApp;
+import LifeAccountingApp from './App.jsx;
 
