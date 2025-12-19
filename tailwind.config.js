@@ -1,4 +1,4 @@
-export default {
+eexport default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,11 +7,4 @@ export default {
     extend: {},
   },
   plugins: [],
-}
-postcss.config.js should be:
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
 }
